@@ -1,0 +1,27 @@
+<div class="statistic-chart">
+  <h1 class="statistic-header">
+    Trenutno gledate podatke grada: {{ city | titlecase }}
+  </h1>
+  <div class="city-information">
+    <h3>Izaberite drugi grad</h3>
+    <ul class="groups-cities list-group mt-5" [ngClass]="{'scroll': cities.length > 7}">
+      <div
+        *ngFor="let item of cities"
+        class="cities alert {{ item.btClass }}"
+        (click)="onRoute(item)"
+      >
+        {{ item.city }}
+      </div>
+    </ul>
+    <button type="button" class="btn btn-danger" [routerLink]="''">Povratak na pocetnu</button>
+  </div>
+  <div class="chart" style="display: block">
+    <canvas
+      baseChart
+      [datasets]="barChartData"
+      [labels]="barChartLabels"
+      [options]="barChartOptions"
+      [legend]="true"
+    ></canvas>
+  </div>
+</div>
