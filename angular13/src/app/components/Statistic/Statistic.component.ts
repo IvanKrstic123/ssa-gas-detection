@@ -1,8 +1,9 @@
-import { City } from './../../models/city.model';
-import {  Component, OnDestroy, OnInit } from '@angular/core';
+import { City, Month } from './../../models/city.model';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { SharedService } from 'src/app/services/shared.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { untilDestroyed } from 'ngx-take-until-destroy';
+import { FormControl } from '@angular/forms';
 
 @Component({
   selector: 'app-Statistic',
@@ -10,8 +11,23 @@ import { untilDestroyed } from 'ngx-take-until-destroy';
   styleUrls: ['./Statistic.component.scss'],
 })
 export class StatisticComponent implements OnInit, OnDestroy {
-  public cities!: any[];
+  public cities: { city: string; btClass: string }[] = [];
+  public originalCities: { city: string; btClass: string }[] = [];
+  public mappedCities: any[] = [];
   public city!: string;
+
+  public zagadjenost: string = 'Zagadjenost';
+
+  public sortData: any[] = [
+    {
+      id: 1,
+      name: 'Najmanja zagadjenost',
+    },
+    {
+      id: 2,
+      name: 'Najveca zagadjenost',
+    },
+  ];
 
   public colors: any[] = [
     'alert-primary',
@@ -26,6 +42,8 @@ export class StatisticComponent implements OnInit, OnDestroy {
     scaleShowVerticalLines: false,
     responsive: true,
   };
+
+  public searchInputControl: FormControl = new FormControl();
 
   public barChartLabels!: string[];
   public barChartData: any[] = [
@@ -44,18 +62,9 @@ export class StatisticComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.getCities();
-    this.route.params.pipe(untilDestroyed(this)).subscribe((value) => {
-      console.log(value['id']);
-      this.barChartData = [
-        { data: [], label: 'Ugljen-monoksid' },
-        { data: [], label: 'Ugljen-dioksid' },
-        { data: [], label: 'Metan' },
-        { data: [], label: 'Propan' },
-        { data: [], label: 'Butan' },
-      ];
-      this.barChartLabels = [];
-      this.getCityInformation(value['id']);
-    });
+    this.getAllCities();
+    this.search();
+    this.listenRouting();
   }
 
   private getCityInformation(city: string) {
@@ -63,7 +72,6 @@ export class StatisticComponent implements OnInit, OnDestroy {
       .getCityInformation(city)
       .pipe(untilDestroyed(this))
       .subscribe((data: City) => {
-        console.log(data);
         if (!data) {
           this.router.navigate(['no-content']);
           return;
@@ -77,9 +85,22 @@ export class StatisticComponent implements OnInit, OnDestroy {
             this.barChartData[3].data.push(data.months[index]['propane']);
             this.barChartData[4].data.push(data.months[index]['butane']);
           });
-          console.log(this.barChartData);
         }
       });
+  }
+
+  private listenRouting() {
+    this.route.params.pipe(untilDestroyed(this)).subscribe((value) => {
+      this.barChartData = [
+        { data: [], label: 'Ugljen-monoksid' },
+        { data: [], label: 'Ugljen-dioksid' },
+        { data: [], label: 'Metan' },
+        { data: [], label: 'Propan' },
+        { data: [], label: 'Butan' },
+      ];
+      this.barChartLabels = [];
+      this.getCityInformation(value['id']);
+    });
   }
 
   private getCities() {
@@ -94,8 +115,6 @@ export class StatisticComponent implements OnInit, OnDestroy {
               this.colors[Math.floor(Math.random() * this.colors.length)]
             );
             len--;
-            console.log(this.colors);
-            console.log(len);
           }
         }
 
@@ -105,12 +124,98 @@ export class StatisticComponent implements OnInit, OnDestroy {
             btClass: this.colors[index],
           };
         });
-        console.log(this.cities);
+        this.originalCities = this.cities;
+      });
+  }
+
+  public getAllCities() {
+    this.sharedService
+      .getAllCities()
+      .pipe(untilDestroyed(this))
+      .subscribe((cities: City[]) => {
+        this.mappedCities = cities.map((item: City) => {
+          return {
+            ...item,
+            sumCo2: item.months.reduce((accumulator, object) => {
+              return accumulator + object.co2;
+            }, 0),
+          };
+        });
+      });
+  }
+
+  public onSelectedSort(sort: { id: number; name: string }) {
+    switch (sort.name.toLowerCase()) {
+      case 'najmanja zagadjenost': {
+        this.cities = this.mappedCities
+          .sort((a, b) => a.sumCo2 - b.sumCo2)
+          .map((item, index) => {
+            return {
+              city: item.city,
+              btClass:
+                this.colors[Math.floor(Math.random() * this.colors.length)],
+            };
+          });
+        this.zagadjenost = 'Najmanja Zagadjenost';
+        this.sortData = this.sortData.filter((item) => item.id !== 3);
+        this.sortData.push({
+          id: 3,
+          name: 'Ponisti',
+        });
+        break;
+      }
+      case 'najveca zagadjenost': {
+        this.cities = this.mappedCities
+          .sort((a, b) => b.sumCo2 - a.sumCo2)
+          .map((item, index) => {
+            return {
+              city: item.city,
+              btClass:
+                this.colors[Math.floor(Math.random() * this.colors.length)],
+            };
+          });
+        this.zagadjenost = 'Najveca Zagadjenost';
+        this.sortData = this.sortData.filter((item) => item.id !== 3);
+        this.sortData.push({
+          id: 3,
+          name: 'Ponisti',
+        });
+        break;
+      }
+      case 'ponisti': {
+        this.cities = this.originalCities;
+        this.sortData = this.sortData.filter((item) => item.id !== 3);
+        this.zagadjenost = 'Zagadjenost';
+        break;
+      }
+      default: {
+        this.zagadjenost = 'Zagadjenost';
+        break;
+      }
+    }
+  }
+
+  public search() {
+    this.searchInputControl.valueChanges
+      .pipe(untilDestroyed(this))
+      .subscribe((value) => {
+        if (value) {
+          this.cities = this.originalCities.filter((item) =>
+            item.city.toLowerCase().includes(value.toLowerCase())
+          );
+        }
+        else {
+          this.cities = this.originalCities;
+        }
       });
   }
 
   public onRoute(item: any) {
     this.router.navigate([`/statistic/${item.city}`]);
+  }
+
+  public identity(index: number, el: any): string {
+    return el;
   }
 
   ngOnDestroy(): void {}

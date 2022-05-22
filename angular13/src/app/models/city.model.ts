@@ -1,10 +1,10 @@
 export interface City {
   id: string;
   city: string;
-  months: any;
+  months: Month[];
 }
 
-interface Months {
+export interface Month {
   name: string;
   co: number;
   co2: number;

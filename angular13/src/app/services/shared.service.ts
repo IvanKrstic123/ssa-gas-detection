@@ -16,4 +16,8 @@ export class SharedService {
   public getCityInformation(name: string): Observable<City> {
     return this.http.get<City>(`https://localhost:5001/gas-emissions/city/${name}`)
   }
+
+  public getAllCities(): Observable<City[]> {
+    return this.http.get<City[]>("https://localhost:5001/gas-emissions");
+  }
 }
